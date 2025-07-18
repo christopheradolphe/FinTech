@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
-from yahoo_fin import stock_info as si
+import yfinance as yf
 
 def get_sp500_tickers():
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -11,7 +11,8 @@ def get_sp500_tickers():
     return tickers
 
 def is_reliably_increasing(data):
-    x = np.arrange(len(data))
+    data = data.dropna()
+    x = np.arange(len(data))
     X = sm.add_constant(x)
     model = sm.OLS(data, X).fit()
     slope = model.params[1]
@@ -26,15 +27,16 @@ def upward_sloping_financials(ticker):
     ])
 
 def fetch_financial_data(ticker, quantity):
+    ticker = yf.Ticker(ticker)
     if quantity == 'Free Cash Flow':
-        cash_flow = si.get_cash_flow(ticker, yearly=True)
-        return cash_flow.loc["totalCashFromOperatingActivities"] - cash_flow.loc["capitalExpenditures"]
+        cashflow = ticker.cashflow
+        return cashflow.loc["Free Cash Flow"]
     elif quantity == 'Net Income': 
-        income_statement = si.get_income_statement(ticker, yearly=True)
-        return income_statement.loc["netIncome"]
+        income = ticker.financials
+        return income.loc["Net Income"]
     elif quantity == 'Revenue': 
-        income_statement = si.get_income_statement(ticker, yearly=True)
-        revenue = income_statement.loc["totalRevenue"]
+        income = ticker.financials
+        return income.loc["Total Revenue"]
     else:
         raise ValueError(f"Invalid quantity '{quantity}'. Expected one of: 'Free Cash Flow', 'Net Income', 'Revenue'.")
         
@@ -42,7 +44,7 @@ def fetch_financial_data(ticker, quantity):
 if __name__ == "__main__":
     tickers = get_sp500_tickers()
     for ticker in tickers[:10]:
-        if upward_sloping_financials(ticker):
+        if upward_sloping_financials("AAPL"):
             print(ticker)
         else:
             print(f"No dice for {ticker}")
