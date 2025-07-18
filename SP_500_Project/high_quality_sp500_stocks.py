@@ -16,7 +16,7 @@ def is_reliably_increasing(data):
     model = sm.OLS(data, X).fit()
     slope = model.params[1]
     p_value = model.pvalues[1]
-    return (slope > 0 and p_value < 0.05)
+    return (slope > 0) and (p_value < 0.1)
 
 def upward_sloping_financials(ticker):
     return all([
@@ -36,14 +36,21 @@ def fetch_financial_data(ticker, quantity):
     elif quantity == 'Revenue': 
         income = ticker.financials
         return income.loc["Total Revenue"].dropna().values[::-1]
+    elif quantity == "Debt-to_Equity":
+        balance = yf.Ticker(ticker).balance_sheet
+        total_liabilities = balance.loc["Total Debt"].dropna().values[0]
+        equity = balance.loc["Stockholder's Equity"].dropna().values[0]
+        return total_liabilities / equity
     else:
         raise ValueError(f"Invalid quantity '{quantity}'. Expected one of: 'Free Cash Flow', 'Net Income', 'Revenue'.")
         
 
 if __name__ == "__main__":
     tickers = get_sp500_tickers()
-    for ticker in tickers[:10]:
-        if upward_sloping_financials("AAPL"):
+    count = 0
+    for ticker in tickers:
+        if upward_sloping_financials(ticker):
             print(ticker)
-        else:
-            print(f"No dice for {ticker}")
+            count += 1
+
+    print(f"Total percentage with upward sloping: {count / 500:.2%}")
