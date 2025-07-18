@@ -30,13 +30,13 @@ def fetch_financial_data(ticker, quantity):
     ticker = yf.Ticker(ticker)
     if quantity == 'Free Cash Flow':
         cashflow = ticker.cashflow
-        return cashflow.loc["Free Cash Flow"]
+        return cashflow.loc["Free Cash Flow"].values[::-1]
     elif quantity == 'Net Income': 
         income = ticker.financials
-        return income.loc["Net Income"]
+        return income.loc["Net Income"].values[::-1]
     elif quantity == 'Revenue': 
         income = ticker.financials
-        return income.loc["Total Revenue"]
+        return income.loc["Total Revenue"].values[::-1]
     else:
         raise ValueError(f"Invalid quantity '{quantity}'. Expected one of: 'Free Cash Flow', 'Net Income', 'Revenue'.")
         
