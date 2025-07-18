@@ -25,6 +25,10 @@ def upward_sloping_financials(ticker):
         is_reliably_increasing(fetch_financial_data(ticker, 'Revenue'))
     ])
 
+def conservative_debt_structure_check(ticker):
+    debt_to_equity = fetch_financial_data(ticker, 'D/E')
+    return debt_to_equity < 1.0
+
 def fetch_financial_data(ticker, quantity):
     ticker = yf.Ticker(ticker)
     if quantity == 'Free Cash Flow':
@@ -36,7 +40,7 @@ def fetch_financial_data(ticker, quantity):
     elif quantity == 'Revenue': 
         income = ticker.financials
         return income.loc["Total Revenue"].dropna().values[::-1]
-    elif quantity == "Debt-to_Equity":
+    elif quantity == "D/E": # Debt to Equity Ratio
         balance = yf.Ticker(ticker).balance_sheet
         total_liabilities = balance.loc["Total Debt"].dropna().values[0]
         equity = balance.loc["Stockholder's Equity"].dropna().values[0]
@@ -44,6 +48,9 @@ def fetch_financial_data(ticker, quantity):
     else:
         raise ValueError(f"Invalid quantity '{quantity}'. Expected one of: 'Free Cash Flow', 'Net Income', 'Revenue'.")
         
+def company_vetting(ticker):
+    upward_sloping_financials(ticker)
+    conservative_debt_structure_check(ticker)
 
 if __name__ == "__main__":
     tickers = get_sp500_tickers()
