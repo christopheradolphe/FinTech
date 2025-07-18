@@ -11,7 +11,6 @@ def get_sp500_tickers():
     return tickers
 
 def is_reliably_increasing(data):
-    data = data.dropna()
     x = np.arange(len(data))
     X = sm.add_constant(x)
     model = sm.OLS(data, X).fit()
@@ -30,13 +29,13 @@ def fetch_financial_data(ticker, quantity):
     ticker = yf.Ticker(ticker)
     if quantity == 'Free Cash Flow':
         cashflow = ticker.cashflow
-        return cashflow.loc["Free Cash Flow"].values[::-1]
+        return cashflow.loc["Free Cash Flow"].dropna().values[::-1]
     elif quantity == 'Net Income': 
         income = ticker.financials
-        return income.loc["Net Income"].values[::-1]
+        return income.loc["Net Income"].dropna().values[::-1]
     elif quantity == 'Revenue': 
         income = ticker.financials
-        return income.loc["Total Revenue"].values[::-1]
+        return income.loc["Total Revenue"].dropna().values[::-1]
     else:
         raise ValueError(f"Invalid quantity '{quantity}'. Expected one of: 'Free Cash Flow', 'Net Income', 'Revenue'.")
         
