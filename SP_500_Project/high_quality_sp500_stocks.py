@@ -41,12 +41,36 @@ def fetch_financial_data(ticker, quantity):
         income = ticker.financials
         return income.loc["Total Revenue"].dropna().values[::-1]
     elif quantity == "D/E": # Debt to Equity Ratio
-        balance = yf.Ticker(ticker).balance_sheet
+        balance = ticker.balance_sheet
         total_liabilities = balance.loc["Total Debt"].dropna().values[0]
         equity = balance.loc["Stockholder's Equity"].dropna().values[0]
         return total_liabilities / equity
+    
+    elif quantity == "ROIC":
+        balance = ticker.balance_sheet
+        income = ticker.financials
+
+        # Invested Capital Calculation
+        total_assets = balance.loc["Total Assets"].dropna().values[0]
+        cash_and_short_term_investments = balance.loc["Cash, Cash Equivalents & Short Term Investments"].dropna().values[0]
+        long_term_investments = balance.loc["Investments & Advances"].dropna().values[0]
+        non_interest_bearing_current_liabilities = balance.loc["Payables and Accrued Expenses"].dropna().values[0] + balance.loc["Other Current Liabilities"].dropna().values[0]
+        invested_capital = total_assets - cash_and_short_term_investments - long_term_investments - non_interest_bearing_current_liabilities
+
+        # NOPAT Calculation
+        ebit = income.loc["EBIT"].dropna().values[0]
+        tax_rate = income.loc["Tax Provision"].dropna().values[0] / income.loc["Pretax Income"].dropna().values[0]
+        nopat = ebit * (1 - tax_rate)
+
+        return nopat / invested_capital
+    elif quantity == "WACC":
+        return 0
     else:
-        raise ValueError(f"Invalid quantity '{quantity}'. Expected one of: 'Free Cash Flow', 'Net Income', 'Revenue'.")
+        raise ValueError(f"Invalid quantity '{quantity}'.")
+    
+def high_roic_check(ticker):
+    roic = fetch_financial_data(ticker, 'ROIC')
+    return np.mean(roic) > 0.1
         
 def company_vetting(ticker):
     upward_sloping_financials(ticker)
