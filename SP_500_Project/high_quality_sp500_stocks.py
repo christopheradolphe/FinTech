@@ -29,6 +29,20 @@ def conservative_debt_structure_check(ticker):
     debt_to_equity = fetch_financial_data(ticker, 'D/E')
     return debt_to_equity < 1.0
 
+def get_risk_free_rate():
+    tnx = yf.Ticker("^TNX")
+    yield_pct = tnx.history(period="1d")["Close"].iloc[-1]
+    return yield_pct / 100
+
+def get_market_return(years=10):
+    spy = yf.Ticker("SPY")
+    hist = spy.history(period=f"{years}y", interval="1mo")
+    start_price = hist["Close"].iloc[0]
+    end_price = hist["Close"].iloc[-1]
+    total_return = (end_price / start_price) - 1
+    annualized = (1 + total_return) ** (1 / years) - 1
+    return annualized
+
 def fetch_financial_data(ticker, quantity):
     ticker = yf.Ticker(ticker)
     if quantity == 'Free Cash Flow':
@@ -42,9 +56,9 @@ def fetch_financial_data(ticker, quantity):
         return income.loc["Total Revenue"].dropna().values[::-1]
     elif quantity == "D/E": # Debt to Equity Ratio
         balance = ticker.balance_sheet
-        total_liabilities = balance.loc["Total Debt"].dropna().values[0]
+        total_debt = balance.loc["Total Debt"].dropna().values[0]
         equity = balance.loc["Stockholder's Equity"].dropna().values[0]
-        return total_liabilities / equity
+        return total_debt / equity
     
     elif quantity == "ROIC":
         balance = ticker.balance_sheet
@@ -64,12 +78,38 @@ def fetch_financial_data(ticker, quantity):
 
         return nopat / invested_capital
     elif quantity == "WACC":
-        return 0
+        market_cap = ticker.info["marketCap"]
+        balance = ticker.balance_sheet
+        income = ticker.financials
+
+        # Cost of Equity Calculations
+        beta = ticker.info["beta"]
+        rf = get_risk_free_rate() # Should be 0.045 roughly
+        rm = get_market_return()
+        cost_of_equity = rf + beta * (rm - rf)
+
+        # Cost of Debt Calculations
+        interest_expense = ticker.financials.loc["Interest Expense"].dropna().values[0]
+        total_debt = balance.loc["Total Debt"].dropna().values[0]
+        cost_of_debt = interest_expense / total_debt
+
+        # Effective Tax Rate Calculation
+        tax = income.loc["Tax Provision"].dropna().values[0]
+        pretax_income = income.loc["Pretax Income"].dropna().values[0]
+        tax_rate = tax / pretax_income if pretax_income != 0 else 0
+
+        # Calculate WACC
+        E = market_cap
+        D = total_debt
+        V = E + D
+        wacc = (E / V) * cost_of_equity + (D / V) * cost_of_debt * (1 - tax_rate)
+
     else:
         raise ValueError(f"Invalid quantity '{quantity}'.")
     
 def high_roic_check(ticker):
     roic = fetch_financial_data(ticker, 'ROIC')
+    wacc = fetch_financial_data(ticker, 'WACC')
     return np.mean(roic) > 0.1
         
 def company_vetting(ticker):
